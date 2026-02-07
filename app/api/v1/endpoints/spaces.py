@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -27,6 +28,49 @@ from app.schemas.space import (
 )
 
 router = APIRouter()
+SPACE_MANAGER_ROLES = {"owner", "admin"}
+
+
+def _get_space_or_404(db: Session, space_id: str) -> Space:
+    space = db.get(Space, space_id)
+    if not space:
+        raise HTTPException(status_code=404, detail="Space not found")
+    return space
+
+
+def _get_space_member(
+    db: Session,
+    space_id: str,
+    user_id: uuid.UUID,
+) -> SpaceMember | None:
+    return db.execute(
+        select(SpaceMember).where(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+
+def _require_space_member(
+    db: Session,
+    space_id: str,
+    user_id: uuid.UUID,
+) -> SpaceMember:
+    member = _get_space_member(db=db, space_id=space_id, user_id=user_id)
+    if not member:
+        raise HTTPException(status_code=403, detail="Forbidden: not a member of this space")
+    return member
+
+
+def _require_space_manager(
+    db: Session,
+    space_id: str,
+    user_id: uuid.UUID,
+) -> SpaceMember:
+    member = _require_space_member(db=db, space_id=space_id, user_id=user_id)
+    if member.role not in SPACE_MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="Forbidden: insufficient role")
+    return member
 
 
 @router.get("/spaces", response_model=Response[SpaceListData])
@@ -36,12 +80,18 @@ def list_spaces(
     order: str = "desc",
     name: str | None = None,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[SpaceListData]:
     offset = (page - 1) * pageSize
 
     space_ids_stmt = select(SpaceMember.space_id).where(SpaceMember.user_id == user_id)
-    total = db.execute(select(func.count()).select_from(space_ids_stmt.subquery())).scalar_one()
+    filtered_spaces_stmt = select(Space.id).where(Space.id.in_(space_ids_stmt))
+    if name:
+        filtered_spaces_stmt = filtered_spaces_stmt.where(Space.name.ilike(f"%{name}%"))
+
+    total = db.execute(
+        select(func.count()).select_from(filtered_spaces_stmt.subquery())
+    ).scalar_one()
 
     member_counts = (
         select(SpaceMember.space_id, func.count().label("member_count"))
@@ -62,9 +112,7 @@ def list_spaces(
         photo_counts, photo_counts.c.space_id == Space.id
     )
 
-    stmt = stmt.where(Space.id.in_(space_ids_stmt))
-    if name:
-        stmt = stmt.where(Space.name.ilike(f"%{name}%"))
+    stmt = stmt.where(Space.id.in_(filtered_spaces_stmt))
 
     if order.lower() == "asc":
         stmt = stmt.order_by(Space.created_at.asc())
@@ -95,7 +143,7 @@ def list_spaces(
 def create_space(
     payload: CreateSpaceRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[CreateSpaceData]:
     space = Space(name=payload.name, owner_id=user_id)
     db.add(space)
@@ -112,11 +160,10 @@ def create_space(
 def get_space(
     space_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[SpaceDetailData]:
-    space = db.get(Space, space_id)
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
+    space = _get_space_or_404(db, space_id)
+    _require_space_member(db=db, space_id=space_id, user_id=user_id)
 
     member_count = db.execute(
         select(func.count()).select_from(SpaceMember).where(SpaceMember.space_id == space_id)
@@ -141,11 +188,10 @@ def update_space(
     space_id: str,
     payload: UpdateSpaceRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[SpaceDetailData]:
-    space = db.get(Space, space_id)
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
+    space = _get_space_or_404(db, space_id)
+    _require_space_manager(db=db, space_id=space_id, user_id=user_id)
 
     if payload.name is not None:
         space.name = payload.name
@@ -176,11 +222,10 @@ def update_space(
 def delete_space(
     space_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[OkData]:
-    space = db.get(Space, space_id)
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
+    space = _get_space_or_404(db, space_id)
+    _require_space_manager(db=db, space_id=space_id, user_id=user_id)
 
     db.delete(space)
     db.commit()
@@ -193,14 +238,16 @@ def create_share_code(
     space_id: str,
     payload: ShareCodeRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[ShareCodeData]:
-    space = db.get(Space, space_id)
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
+    if payload.expiresIn <= 0:
+        raise HTTPException(status_code=400, detail="expiresIn must be greater than 0")
+
+    space = _get_space_or_404(db, space_id)
+    _require_space_manager(db=db, space_id=space_id, user_id=user_id)
 
     code = secrets.token_urlsafe(6).upper().replace("-", "").replace("_", "")[:6]
-    expires_at = datetime.utcnow() + timedelta(seconds=payload.expiresIn)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=payload.expiresIn)
 
     record = SpaceShareCode(
         space_id=space.id,
@@ -218,14 +265,20 @@ def create_share_code(
 def join_space(
     payload: JoinSpaceRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response[JoinSpaceData]:
     share = db.execute(
         select(SpaceShareCode).where(SpaceShareCode.share_code == payload.shareCode)
     ).scalar_one_or_none()
     if not share:
         raise HTTPException(status_code=404, detail="Share code not found")
-    if share.expires_at < datetime.utcnow():
+    now = datetime.now(timezone.utc)
+    expires_at = (
+        share.expires_at
+        if share.expires_at.tzinfo is not None
+        else share.expires_at.replace(tzinfo=timezone.utc)
+    )
+    if expires_at < now:
         raise HTTPException(status_code=400, detail="Share code expired")
 
     existing = db.execute(
@@ -233,9 +286,12 @@ def join_space(
             SpaceMember.space_id == share.space_id, SpaceMember.user_id == user_id
         )
     ).scalar_one_or_none()
+    role = "member"
     if not existing:
         member = SpaceMember(space_id=share.space_id, user_id=user_id, role="member")
         db.add(member)
         db.commit()
+    else:
+        role = existing.role
 
-    return Response(data=JoinSpaceData(spaceId=str(share.space_id), role="member"))
+    return Response(data=JoinSpaceData(spaceId=str(share.space_id), role=role))

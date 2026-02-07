@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import secrets
 
@@ -14,7 +14,7 @@ class UploadPlan:
 
 def generate_upload_plan(ttl_seconds: int) -> UploadPlan:
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
     return UploadPlan(token=token, expires_at=expires_at)
 
 

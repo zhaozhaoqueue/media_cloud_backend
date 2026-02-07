@@ -85,3 +85,12 @@ class BatchCreatePhotosData(BaseModel):
 
 class DownloadData(BaseModel):
     downloadUrl: str
+
+
+class BatchDeletePhotosRequest(BaseModel):
+    ids: List[str]
+
+
+class BatchDeletePhotosData(BaseModel):
+    ok: bool
+    ids: List[str]

@@ -24,3 +24,8 @@ class OkData(BaseModel):
 class AddMemberRequest(BaseModel):
     userId: str
     role: str = "member"
+
+
+class TransferOwnerRequest(BaseModel):
+    newOwnerUserId: str
+    previousOwnerRole: str = "admin"

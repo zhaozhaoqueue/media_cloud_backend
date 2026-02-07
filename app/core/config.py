@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     storage_local_root: str = "./storage"
     storage_base_url: str = "http://localhost:8000"
+    read_url_ttl_seconds: int = 600
+    read_url_signing_secret: str = "dev-read-url-secret"
     upload_token_ttl_seconds: int = 900
     thumb_max_size: int = 512
 

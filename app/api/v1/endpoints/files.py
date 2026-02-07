@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,9 +19,37 @@ from app.schemas.file import (
     UpdateFileRequest,
     UploadCompleteData,
 )
+from app.services.read_url import verify_file_read_signature
 from app.services.storage import ensure_local_path
 
 router = APIRouter()
+
+
+def _authorize_file_read(
+    *,
+    file_id: str,
+    variant: str,
+    expires: int | None,
+    sig: str | None,
+    x_user_id: str | None,
+) -> None:
+    # Signed URL access for mini-program image loading.
+    if expires is not None or sig is not None:
+        if expires is None or sig is None:
+            raise HTTPException(status_code=403, detail="Invalid signed url")
+        is_valid = verify_file_read_signature(
+            file_id=file_id,
+            variant=variant,
+            expires=expires,
+            signature=sig,
+            secret=settings.read_url_signing_secret,
+        )
+        if not is_valid:
+            raise HTTPException(status_code=403, detail="Invalid or expired signed url")
+        return
+
+    # Backward compatible dev auth path.
+    get_current_user_id(x_user_id=x_user_id)
 
 
 @router.get("/files", response_model=Response[FileListData])
@@ -105,8 +133,14 @@ async def upload_file(
         raise HTTPException(status_code=404, detail="File not found")
     if not record.upload_token or record.upload_token != token:
         raise HTTPException(status_code=403, detail="Invalid upload token")
-    if record.upload_expires_at and record.upload_expires_at < datetime.utcnow():
-        raise HTTPException(status_code=403, detail="Upload token expired")
+    if record.upload_expires_at:
+        expires_at = (
+            record.upload_expires_at
+            if record.upload_expires_at.tzinfo is not None
+            else record.upload_expires_at.replace(tzinfo=timezone.utc)
+        )
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=403, detail="Upload token expired")
 
     storage_path = ensure_local_path(settings.storage_local_root, record.storage_key)
 
@@ -123,9 +157,19 @@ async def upload_file(
 @router.get("/files/{file_id}/raw")
 def download_raw_file(
     file_id: str,
+    expires: int | None = None,
+    sig: str | None = None,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
 ):
+    _authorize_file_read(
+        file_id=file_id,
+        variant="raw",
+        expires=expires,
+        sig=sig,
+        x_user_id=x_user_id,
+    )
+
     record = db.get(File, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
@@ -140,16 +184,29 @@ def download_raw_file(
 @router.get("/files/{file_id}/thumb")
 def download_thumb_file(
     file_id: str,
+    expires: int | None = None,
+    sig: str | None = None,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id),
 ):
+    _authorize_file_read(
+        file_id=file_id,
+        variant="thumb",
+        expires=expires,
+        sig=sig,
+        x_user_id=x_user_id,
+    )
+
     record = db.get(File, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
     path = Path(settings.storage_local_root) / f"thumbs/{file_id}.jpg"
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Thumbnail missing")
+        raw_path = Path(settings.storage_local_root) / record.storage_key
+        if not raw_path.exists():
+            raise HTTPException(status_code=404, detail="Thumbnail missing")
+        return FileResponse(raw_path, media_type=record.mime_type, filename=record.name)
 
     return FileResponse(path, media_type="image/jpeg", filename=f"{file_id}.jpg")
 

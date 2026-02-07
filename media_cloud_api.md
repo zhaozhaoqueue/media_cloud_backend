@@ -1,6 +1,9 @@
-**新版接口文档（分享码方案）**
+**Media Cloud API 文档（含扩展接口）**
 
-**统一返回**
+**Base URL**
+- `/api/v1`
+
+**统一返回（除健康检查）**
 ```json
 {
   "code": 0,
@@ -10,11 +13,37 @@
 ```
 
 **认证**
-- `Authorization: Bearer <token>`
+- 当前后端实现为开发鉴权：`X-User-Id: <uuid>`
+- 登录接口返回 `token`，但受保护接口当前仍依赖 `X-User-Id`
+
+---
+
+**健康检查（扩展）**
+1. `GET /api/v1/health`
+- 返回（注意：不走统一包装）：
+```json
+{ "status": "ok" }
+```
+
+---
+
+**登录**
+1. `POST /api/v1/auth/login`
+- 入参：
+```json
+{ "code": "<wx.login code>" }
+```
+- 返回：
+```json
+{ "token": "dev-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+```
+
+---
 
 **空间相关**
 1. `GET /api/v1/spaces`
-- 入参：`page`、`pageSize`
+- 入参：`page`、`pageSize`、`order`(`asc|desc`)、`name`
+- 说明：`coverUrl` 默认为空；当空间第一次创建图片时会自动设置为该图片的 `thumbUrl`
 - 返回：
 ```json
 {
@@ -27,7 +56,7 @@
 }
 ```
 
-1. `POST /api/v1/spaces`
+2. `POST /api/v1/spaces`
 - 入参：
 ```json
 { "name": "旅行分享" }
@@ -37,14 +66,26 @@
 { "id": "sp_2", "name": "旅行分享" }
 ```
 
-1. `GET /api/v1/spaces/:spaceId`
-- 入参：`spaceId`
+3. `GET /api/v1/spaces/:spaceId`
 - 返回：
 ```json
 { "id": "sp_1", "name": "家庭相册", "memberCount": 4, "photoCount": 126, "coverUrl": "https://..." }
 ```
 
-1. `POST /api/v1/spaces/:spaceId/share-code`
+4. `PATCH /api/v1/spaces/:spaceId`（扩展）
+- 入参：
+```json
+{ "name": "新名称", "coverUrl": "https://..." }
+```
+- 返回：同空间详情
+
+5. `DELETE /api/v1/spaces/:spaceId`（扩展）
+- 返回：
+```json
+{ "ok": true }
+```
+
+6. `POST /api/v1/spaces/:spaceId/share-code`
 - 说明：生成分享码
 - 入参：
 ```json
@@ -55,7 +96,7 @@
 { "shareCode": "ABC123", "expireAt": "2026-02-05T12:00:00Z" }
 ```
 
-1. `POST /api/v1/spaces/join`
+7. `POST /api/v1/spaces/join`
 - 说明：使用分享码加入空间
 - 入参：
 ```json
@@ -66,14 +107,44 @@
 { "spaceId": "sp_1", "role": "member" }
 ```
 
-**图片相关**
-6. `GET /api/v1/spaces/:spaceId/photos`
-- 入参：`page`、`pageSize`
+8. `GET /api/v1/spaces/:spaceId/share-codes`（扩展）
+- 入参：`page`、`pageSize`、`activeOnly`
 - 返回：
 ```json
 {
   "list": [
-    { "id": "ph_1", "name": "封面照", "url": "https://...", "ownerName": "Luka", "createdAt": "2026-02-04T10:00:00Z" }
+    { "id": "sc_1", "shareCode": "ABC123", "expireAt": "2026-02-05T12:00:00Z", "createdAt": "2026-02-04T12:00:00Z" }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1
+}
+```
+
+9. `DELETE /api/v1/spaces/:spaceId/share-codes/:shareCodeId`（扩展）
+- 返回：
+```json
+{ "ok": true }
+```
+
+---
+
+**图片相关**
+- 权限：需为该空间成员；`PATCH/DELETE`（含批量删除）需为图片所有者或空间 `owner/admin`
+1. `GET /api/v1/spaces/:spaceId/photos`
+- 入参：`page`、`pageSize`、`order`(`asc|desc`)、`ownerId`
+- 返回（已与代码对齐，列表字段为 `thumbUrl`）：
+- 说明：`thumbUrl` 为短期签名 URL（带 `expires`、`sig`），可直接用于小程序图片组件加载
+```json
+{
+  "list": [
+    {
+      "id": "ph_1",
+      "name": "封面照",
+      "thumbUrl": "https://api.example.com/api/v1/files/file_1/thumb?expires=1760000000&sig=xxx",
+      "ownerName": "Luka",
+      "createdAt": "2026-02-04T10:00:00Z"
+    }
   ],
   "page": 1,
   "pageSize": 30,
@@ -81,13 +152,23 @@
 }
 ```
 
-7. `GET /api/v1/photos/:photoId`
+2. `GET /api/v1/photos/:photoId`
 - 返回：
 ```json
-{ "id": "ph_1", "name": "封面照", "url": "https://...", "ownerName": "Luka", "createdAt": "2026-02-04T10:00:00Z", "size": 123456 }
+{
+  "id": "ph_1",
+  "name": "封面照",
+  "url": "https://...",
+  "ownerName": "Luka",
+  "createdAt": "2026-02-04T10:00:00Z",
+  "size": 123456,
+  "width": 1920,
+  "height": 1080,
+  "thumbUrl": "https://..."
+}
 ```
 
-8. `POST /api/v1/photos/upload-token`
+3. `POST /api/v1/photos/upload-token`
 - 入参：
 ```json
 { "spaceId": "sp_1", "files": [{ "name": "a.jpg", "size": 123456, "type": "image/jpeg" }] }
@@ -107,36 +188,85 @@
 }
 ```
 
-9. `POST /api/v1/photos`
+4. `POST /api/v1/photos`
 - 入参：
 ```json
 { "spaceId": "sp_1", "fileId": "file_1", "name": "封面照" }
 ```
+- 说明：若该空间当前没有封面，会自动将本次图片的 `thumbUrl` 设为 `space.coverUrl`
 - 返回：
 ```json
 { "id": "ph_1", "url": "https://cdn..." }
 ```
 
-10. `GET /api/v1/photos/:photoId/download`
+5. `POST /api/v1/photos/batch`（扩展）
+- 入参：
+```json
+{
+  "spaceId": "sp_1",
+  "items": [
+    { "fileId": "file_1", "name": "封面照1" },
+    { "fileId": "file_2", "name": "封面照2" }
+  ]
+}
+```
+- 返回：
+```json
+{ "ids": ["ph_1", "ph_2"] }
+```
+
+6. `GET /api/v1/photos/:photoId/download`
 - 返回：
 ```json
 { "downloadUrl": "https://download..." }
 ```
 
-11. `DELETE /api/v1/photos/:photoId`
+7. `PATCH /api/v1/photos/:photoId`（扩展）
+- 入参：
+```json
+{ "name": "新名称" }
+```
+- 返回：同图片详情
+
+8. `DELETE /api/v1/photos/:photoId`
+- 说明：若删除的是当前空间封面图，会自动切换到该空间下一张图片的 `thumbUrl`；若无剩余图片则封面置空
 - 返回：
 ```json
 { "ok": true }
 ```
 
-**成员相关（保留）**
-12. `GET /api/v1/spaces/:spaceId/members`
+9. `POST /api/v1/photos/batch-delete`（扩展）
+- 入参：
+```json
+{ "ids": ["ph_1", "ph_2"] }
+```
+- 说明：批量删除多张图片，封面图删除后的回填逻辑与单删一致
+- 返回：
+```json
+{ "ok": true, "ids": ["ph_1", "ph_2"] }
+```
+
+---
+
+**成员相关**
+- 权限：查看成员需为该空间成员；新增/改角色/删除/转移 owner 仅当前 `owner` 可操作
+1. `GET /api/v1/spaces/:spaceId/members`
 - 返回：
 ```json
 { "list": [{ "userId": "u1", "name": "Luka", "role": "owner" }] }
 ```
 
-13. `POST /api/v1/spaces/:spaceId/members/:userId/role`
+2. `POST /api/v1/spaces/:spaceId/members`（扩展）
+- 入参：
+```json
+{ "userId": "u2", "role": "member" }
+```
+- 返回：
+```json
+{ "ok": true }
+```
+
+3. `POST /api/v1/spaces/:spaceId/members/:userId/role`
 - 入参：
 ```json
 { "role": "admin" }
@@ -146,19 +276,78 @@
 { "ok": true }
 ```
 
-14. `DELETE /api/v1/spaces/:spaceId/members/:userId`
+4. `DELETE /api/v1/spaces/:spaceId/members/:userId`
+- 说明：仅 `owner` 可操作；不可删除当前 owner
 - 返回：
 ```json
 { "ok": true }
 ```
 
-**登录**
-15. `POST /api/v1/auth/login`
+5. `POST /api/v1/spaces/:spaceId/owner/transfer`（扩展）
 - 入参：
 ```json
-{ "code": "<wx.login code>" }
+{ "newOwnerUserId": "u2", "previousOwnerRole": "admin" }
 ```
+- 说明：将空间 owner 迁移给已在该空间中的成员；`previousOwnerRole` 仅支持 `member/admin`
 - 返回：
 ```json
-{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+{ "ok": true }
+```
+
+---
+
+**文件相关（扩展）**
+1. `GET /api/v1/files`
+- 入参：`spaceId`(必填)、`page`、`pageSize`、`order`(`asc|desc`)、`status`
+- 返回：
+```json
+{
+  "list": [
+    {
+      "id": "file_1",
+      "spaceId": "sp_1",
+      "name": "a.jpg",
+      "mimeType": "image/jpeg",
+      "size": 123456,
+      "status": "uploaded",
+      "finalUrl": "https://cdn...",
+      "createdAt": "2026-02-04T10:00:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 30,
+  "total": 1
+}
+```
+
+2. `GET /api/v1/files/:fileId`
+- 返回：同文件列表项字段
+
+3. `PUT /api/v1/uploads/:fileId?token=xxx`
+- 说明：客户端按 `upload-token` 接口返回的地址直接上传文件二进制流
+- 返回：
+```json
+{ "ok": true }
+```
+
+4. `GET /api/v1/files/:fileId/raw`
+- 说明：返回原图文件流；支持两种访问方式：
+- 方式 A：请求头 `X-User-Id`
+- 方式 B：签名参数 `?expires=<unix_ts>&sig=<signature>`
+
+5. `GET /api/v1/files/:fileId/thumb`
+- 说明：优先返回缩略图文件流（jpg）；若缩略图尚未生成则回退返回原图文件流
+- 说明：同样支持 `X-User-Id` 或签名参数访问
+
+6. `PATCH /api/v1/files/:fileId`
+- 入参：
+```json
+{ "name": "new-name.jpg" }
+```
+- 返回：同文件详情
+
+7. `DELETE /api/v1/files/:fileId`
+- 返回：
+```json
+{ "ok": true }
 ```

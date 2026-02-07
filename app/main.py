@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
         allow_headers=settings.cors_allow_headers,
     )
 
-    app.include_router(api_router, prefix="/v1")
+    app.include_router(api_router, prefix="/api/v1")
 
     return app
 
