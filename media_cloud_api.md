@@ -13,8 +13,7 @@
 ```
 
 **认证**
-- 当前后端实现为开发鉴权：`X-User-Id: <uuid>`
-- 登录接口返回 `token`，但受保护接口当前仍依赖 `X-User-Id`
+- 受保护接口使用 `Authorization: Bearer <token>`
 
 ---
 
@@ -31,11 +30,16 @@
 1. `POST /api/v1/auth/login`
 - 入参：
 ```json
-{ "code": "<wx.login code>" }
+{
+  "code": "<wx.login code>",
+  "nickname": "Luka",
+  "avatar": "https://..."
+}
 ```
+- 说明：`nickname` 与 `avatar` 为可选；首次创建用户时会用 `nickname` 作为用户名
 - 返回：
 ```json
-{ "token": "dev-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
 ```
 
 ---
@@ -44,6 +48,7 @@
 1. `GET /api/v1/spaces`
 - 入参：`page`、`pageSize`、`order`(`asc|desc`)、`name`
 - 说明：`coverUrl` 默认为空；当空间第一次创建图片时会自动设置为该图片的 `thumbUrl`
+- 说明：当 `coverUrl` 指向系统文件接口时，响应中会自动下发短期签名 URL（带 `expires`、`sig`）
 - 返回：
 ```json
 {
@@ -67,6 +72,7 @@
 ```
 
 3. `GET /api/v1/spaces/:spaceId`
+- 说明：`coverUrl` 在适用时自动下发短期签名 URL
 - 返回：
 ```json
 { "id": "sp_1", "name": "家庭相册", "memberCount": 4, "photoCount": 126, "coverUrl": "https://..." }
@@ -153,6 +159,7 @@
 ```
 
 2. `GET /api/v1/photos/:photoId`
+- 说明：`url` 与 `thumbUrl` 均为短期签名 URL（带 `expires`、`sig`）
 - 返回：
 ```json
 {
@@ -216,6 +223,7 @@
 ```
 
 6. `GET /api/v1/photos/:photoId/download`
+- 说明：`downloadUrl` 为短期签名 URL（带 `expires`、`sig`）
 - 返回：
 ```json
 { "downloadUrl": "https://download..." }
@@ -332,12 +340,12 @@
 
 4. `GET /api/v1/files/:fileId/raw`
 - 说明：返回原图文件流；支持两种访问方式：
-- 方式 A：请求头 `X-User-Id`
+- 方式 A：请求头 `Authorization: Bearer <token>`
 - 方式 B：签名参数 `?expires=<unix_ts>&sig=<signature>`
 
 5. `GET /api/v1/files/:fileId/thumb`
 - 说明：优先返回缩略图文件流（jpg）；若缩略图尚未生成则回退返回原图文件流
-- 说明：同样支持 `X-User-Id` 或签名参数访问
+- 说明：同样支持 `Authorization: Bearer <token>` 或签名参数访问
 
 6. `PATCH /api/v1/files/:fileId`
 - 入参：

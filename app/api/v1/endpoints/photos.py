@@ -220,13 +220,25 @@ def get_photo(
         data=PhotoDetailData(
             id=str(photo.id),
             name=photo.name,
-            url=photo.url,
+            url=generate_signed_file_read_url(
+                base_url=settings.storage_base_url,
+                file_id=str(photo.file_id),
+                variant="raw",
+                ttl_seconds=settings.read_url_ttl_seconds,
+                secret=settings.read_url_signing_secret,
+            ),
             ownerName=owner_name,
             createdAt=photo.created_at,
             size=photo.size,
             width=photo.width,
             height=photo.height,
-            thumbUrl=photo.thumb_url,
+            thumbUrl=generate_signed_file_read_url(
+                base_url=settings.storage_base_url,
+                file_id=str(photo.file_id),
+                variant="thumb",
+                ttl_seconds=settings.read_url_ttl_seconds,
+                secret=settings.read_url_signing_secret,
+            ),
         )
     )
 
@@ -352,7 +364,17 @@ def download_photo(
         raise HTTPException(status_code=404, detail="Photo not found")
     _require_space_member(db=db, space_id=photo.space_id, user_id=user_id)
 
-    return Response(data=DownloadData(downloadUrl=photo.url))
+    return Response(
+        data=DownloadData(
+            downloadUrl=generate_signed_file_read_url(
+                base_url=settings.storage_base_url,
+                file_id=str(photo.file_id),
+                variant="raw",
+                ttl_seconds=settings.read_url_ttl_seconds,
+                secret=settings.read_url_signing_secret,
+            )
+        )
+    )
 
 
 @router.patch("/photos/{photo_id}", response_model=Response[PhotoDetailData])
@@ -376,13 +398,25 @@ def update_photo(
         data=PhotoDetailData(
             id=str(photo.id),
             name=photo.name,
-            url=photo.url,
+            url=generate_signed_file_read_url(
+                base_url=settings.storage_base_url,
+                file_id=str(photo.file_id),
+                variant="raw",
+                ttl_seconds=settings.read_url_ttl_seconds,
+                secret=settings.read_url_signing_secret,
+            ),
             ownerName=owner_name,
             createdAt=photo.created_at,
             size=photo.size,
             width=photo.width,
             height=photo.height,
-            thumbUrl=photo.thumb_url,
+            thumbUrl=generate_signed_file_read_url(
+                base_url=settings.storage_base_url,
+                file_id=str(photo.file_id),
+                variant="thumb",
+                ttl_seconds=settings.read_url_ttl_seconds,
+                secret=settings.read_url_signing_secret,
+            ),
         )
     )
 

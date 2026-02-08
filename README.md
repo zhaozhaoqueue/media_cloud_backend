@@ -31,7 +31,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host $APP_HOST --port $APP_PORT
 ```
 
-Dev auth: send `X-User-Id: <uuid>` header to protected endpoints.
+Auth: send `Authorization: Bearer <token>` header to protected endpoints.
 
 Health check: `GET /api/v1/health`
 
@@ -47,6 +47,7 @@ cp .env.example .env
 
 - `APP_ENV` / `LOG_LEVEL`
 - `APP_HOST` / `APP_PORT`
+- `JWT_SECRET` / `JWT_ALGORITHM` / `JWT_EXPIRE_MINUTES`
 - `DATABASE_URL`
 - `STORAGE_BASE_URL` / `STORAGE_LOCAL_ROOT`
 - `READ_URL_TTL_SECONDS` / `READ_URL_SIGNING_SECRET`

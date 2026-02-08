@@ -31,7 +31,7 @@ def _authorize_file_read(
     variant: str,
     expires: int | None,
     sig: str | None,
-    x_user_id: str | None,
+    authorization: str | None,
 ) -> None:
     # Signed URL access for mini-program image loading.
     if expires is not None or sig is not None:
@@ -48,8 +48,8 @@ def _authorize_file_read(
             raise HTTPException(status_code=403, detail="Invalid or expired signed url")
         return
 
-    # Backward compatible dev auth path.
-    get_current_user_id(x_user_id=x_user_id)
+    # Token auth path.
+    get_current_user_id(authorization=authorization)
 
 
 @router.get("/files", response_model=Response[FileListData])
@@ -159,7 +159,7 @@ def download_raw_file(
     file_id: str,
     expires: int | None = None,
     sig: str | None = None,
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ):
     _authorize_file_read(
@@ -167,7 +167,7 @@ def download_raw_file(
         variant="raw",
         expires=expires,
         sig=sig,
-        x_user_id=x_user_id,
+        authorization=authorization,
     )
 
     record = db.get(File, file_id)
@@ -186,7 +186,7 @@ def download_thumb_file(
     file_id: str,
     expires: int | None = None,
     sig: str | None = None,
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ):
     _authorize_file_read(
@@ -194,7 +194,7 @@ def download_thumb_file(
         variant="thumb",
         expires=expires,
         sig=sig,
-        x_user_id=x_user_id,
+        authorization=authorization,
     )
 
     record = db.get(File, file_id)

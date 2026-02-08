@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,13 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     log_level: str = "INFO"
+
+    jwt_secret: str = "dev-jwt-secret"
+    jwt_algorithm: str = "HS256"
+    jwt_expires_minutes: int = Field(
+        default=120,
+        validation_alias=AliasChoices("JWT_EXPIRES_MINUTES", "JWT_EXPIRE_MINUTES"),
+    )
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/media_cloud"
     storage_backend: str = "local"

@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta, timezone
 import secrets
+import re
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_id
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.space import Space
 from app.models.photo import Photo
@@ -26,9 +29,11 @@ from app.schemas.space import (
     SpaceListItem,
     UpdateSpaceRequest,
 )
+from app.services.read_url import generate_signed_file_read_url
 
 router = APIRouter()
 SPACE_MANAGER_ROLES = {"owner", "admin"}
+THUMB_PATH_PATTERN = re.compile(r"^/api/v1/files/([0-9a-fA-F-]{36})/thumb$")
 
 
 def _get_space_or_404(db: Session, space_id: str) -> Space:
@@ -71,6 +76,31 @@ def _require_space_manager(
     if member.role not in SPACE_MANAGER_ROLES:
         raise HTTPException(status_code=403, detail="Forbidden: insufficient role")
     return member
+
+
+def _to_signed_cover_url(cover_url: str | None) -> str | None:
+    if not cover_url:
+        return None
+
+    parsed = urlparse(cover_url)
+    path = parsed.path if parsed.scheme else cover_url.split("?", 1)[0]
+    match = THUMB_PATH_PATTERN.match(path)
+    if not match:
+        return cover_url
+
+    file_id = match.group(1)
+    try:
+        uuid.UUID(file_id)
+    except ValueError:
+        return cover_url
+
+    return generate_signed_file_read_url(
+        base_url=settings.storage_base_url,
+        file_id=file_id,
+        variant="thumb",
+        ttl_seconds=settings.read_url_ttl_seconds,
+        secret=settings.read_url_signing_secret,
+    )
 
 
 @router.get("/spaces", response_model=Response[SpaceListData])
@@ -129,7 +159,7 @@ def list_spaces(
             name=space.name,
             memberCount=member_count,
             photoCount=photo_count,
-            coverUrl=space.cover_url,
+            coverUrl=_to_signed_cover_url(space.cover_url),
         )
         for space, member_count, photo_count in rows
     ]
@@ -178,7 +208,7 @@ def get_space(
             name=space.name,
             memberCount=member_count,
             photoCount=photo_count,
-            coverUrl=space.cover_url,
+            coverUrl=_to_signed_cover_url(space.cover_url),
         )
     )
 
@@ -213,7 +243,7 @@ def update_space(
             name=space.name,
             memberCount=member_count,
             photoCount=photo_count,
-            coverUrl=space.cover_url,
+            coverUrl=_to_signed_cover_url(space.cover_url),
         )
     )
 

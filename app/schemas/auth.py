@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 class LoginRequest(BaseModel):
     code: str
+    nickname: str | None = None
+    avatar: str | None = None
 
 
 class UserInfo(BaseModel):
