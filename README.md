@@ -37,16 +37,10 @@ Health check: `GET /api/v1/health`
 
 ## Docker Compose
 
-Build and start API service:
+Build and start API service (database should be provided externally via `DATABASE_URL`):
 
 ```bash
 docker compose up -d --build api
-```
-
-Start API + local PostgreSQL:
-
-```bash
-docker compose --profile with-db up -d --build
 ```
 
 View logs:

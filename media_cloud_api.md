@@ -15,6 +15,16 @@
 **认证**
 - 受保护接口使用 `Authorization: Bearer <token>`
 
+**HTTP 状态码说明**
+- `200`：请求成功（业务成功时通常返回统一结构，`code=0`）
+- `400`：请求参数格式错误或业务参数不合法（如 UUID 格式错误、非法 role）
+- `401`：未认证或 token 无效/过期
+- `403`：已认证但无权限，或签名 URL 无效/过期
+- `404`：资源不存在（如用户/空间/图片/账号不存在）
+- `409`：资源冲突（如注册时账号已存在）
+- `422`：请求体字段缺失或类型不匹配（FastAPI 参数校验失败）
+- `500`：服务端内部错误
+
 ---
 
 **健康检查（扩展）**
@@ -27,20 +37,38 @@
 ---
 
 **登录**
-1. `POST /api/v1/auth/login`
+1. `POST /api/v1/auth/register`
 - 入参：
 ```json
 {
+  "provider": "wechat_mini",
   "code": "<wx.login code>",
+  "accessCode": "<固定字符串码>",
   "nickname": "Luka",
   "avatar": "https://..."
 }
 ```
-- 说明：`nickname` 与 `avatar` 为可选；首次创建用户时会用 `nickname` 作为用户名
+- 说明：注册接口；`provider` 用于区分登录来源，`accessCode` 为固定字符串码；`nickname` 与 `avatar` 为可选
 - 返回：
 ```json
 { "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
 ```
+- 常见状态码：`200`、`400`、`403`、`409`、`422`
+
+2. `POST /api/v1/auth/login`
+- 入参：
+```json
+{
+  "provider": "wechat_mini",
+  "code": "<wx.login code>"
+}
+```
+- 说明：登录接口，仅登录已注册账号；若账号不存在返回 404；登录阶段不校验 `accessCode`
+- 返回：
+```json
+{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+```
+- 常见状态码：`200`、`400`、`404`、`422`
 
 ---
 
