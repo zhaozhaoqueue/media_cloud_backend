@@ -12,4 +12,4 @@ venv/
 .mypy_cache/
 .ruff_cache/
 storage/
-backendapi.tar
+*.tar

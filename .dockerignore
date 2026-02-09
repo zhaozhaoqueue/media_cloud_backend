@@ -10,5 +10,5 @@ venv
 .env
 storage
 tests
-backendapi.tar
+*.tar
 flyway
