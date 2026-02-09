@@ -1,0 +1,35 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: media-cloud-api
+    env_file:
+      - .env
+    environment:
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+      APP_WORKERS: ${APP_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-60}
+      GUNICORN_KEEPALIVE: ${GUNICORN_KEEPALIVE:-5}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:${APP_PORT:-8000}"
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    container_name: media-cloud-postgres
+    profiles: ["with-db"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-media_cloud}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - media-cloud-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  media-cloud-pgdata:

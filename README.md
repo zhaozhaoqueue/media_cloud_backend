@@ -35,6 +35,26 @@ Auth: send `Authorization: Bearer <token>` header to protected endpoints.
 
 Health check: `GET /api/v1/health`
 
+## Docker Compose
+
+Build and start API service:
+
+```bash
+docker compose up -d --build api
+```
+
+Start API + local PostgreSQL:
+
+```bash
+docker compose --profile with-db up -d --build
+```
+
+View logs:
+
+```bash
+docker compose logs -f api
+```
+
 ## Config
 
 `.env` is loaded automatically by the app.
@@ -47,6 +67,8 @@ cp .env.example .env
 
 - `APP_ENV` / `LOG_LEVEL`
 - `APP_HOST` / `APP_PORT`
+- `APP_WORKERS` / `GUNICORN_TIMEOUT` / `GUNICORN_KEEPALIVE`
+- `FORWARDED_ALLOW_IPS`
 - `JWT_SECRET` / `JWT_ALGORITHM` / `JWT_EXPIRE_MINUTES`
 - `DATABASE_URL`
 - `STORAGE_BASE_URL` / `STORAGE_LOCAL_ROOT`
@@ -54,6 +76,17 @@ cp .env.example .env
 - `UPLOAD_TOKEN_TTL_SECONDS`
 - `THUMB_MAX_SIZE`
 - `CORS_ORIGINS` / `CORS_ALLOW_CREDENTIALS` / `CORS_ALLOW_METHODS` / `CORS_ALLOW_HEADERS`
+
+`FORWARDED_ALLOW_IPS` controls whether the app trusts `X-Forwarded-*` headers from proxy.
+
+- `*`: trust all upstreams. Use only when app is not publicly exposed directly and all traffic comes through trusted reverse proxy.
+- Recommended production: set to your trusted proxy source IP(s), e.g. `127.0.0.1` or Docker bridge gateway.
+
+For HTTPS URL generation behind Nginx, set:
+
+```env
+STORAGE_BASE_URL=https://your-api-domain.com
+```
 
 ## Local Storage (Presigned PUT style)
 
