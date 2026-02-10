@@ -1,11 +1,16 @@
+networks:
+  media_cloud_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: media_cloud_backend:0.3
     container_name: media-cloud-api
     env_file:
-      - .env
+      - ${APP_ENV_FILE:-.env}
     environment:
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
       APP_WORKERS: ${APP_WORKERS:-2}
@@ -18,3 +23,5 @@ services:
     volumes:
       - ./storage:/app/storage
     restart: unless-stopped
+    networks:
+      - media_cloud_net

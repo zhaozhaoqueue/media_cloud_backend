@@ -13,3 +13,4 @@ venv/
 .ruff_cache/
 storage/
 *.tar
+media.weloverhea.top_nginx*
