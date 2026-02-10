@@ -4,14 +4,7 @@ from pydantic import BaseModel
 class LoginRequest(BaseModel):
     provider: str
     code: str
-
-
-class RegisterRequest(BaseModel):
-    provider: str
-    code: str
-    accessCode: str
-    nickname: str | None = None
-    avatar: str | None = None
+    inviteCode: str | None = None
 
 
 class UserInfo(BaseModel):
@@ -23,3 +16,8 @@ class UserInfo(BaseModel):
 class LoginData(BaseModel):
     token: str
     user: UserInfo
+
+
+class UpdateUserProfileRequest(BaseModel):
+    name: str | None = None
+    avatar: str | None = None

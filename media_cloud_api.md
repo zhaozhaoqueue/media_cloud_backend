@@ -37,40 +37,41 @@
 ---
 
 **登录**
-1. `POST /api/v1/auth/register`
+1. `POST /api/v1/auth/login`
 - 入参：
 ```json
 {
   "provider": "wechat_mini",
   "code": "<wx.login code>",
-  "accessCode": "<固定字符串码>",
-  "nickname": "Luka",
+  "inviteCode": "<邀请码，可选>"
+}
+```
+- 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识
+- 说明：若用户已存在，直接登录并返回 token
+- 说明：若用户不存在，则校验 `inviteCode`。校验通过后自动创建用户（随机名称，头像为空）并登录；校验失败返回 403
+- 返回：
+```json
+{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+```
+- 常见状态码：`200`、`400`、`403`、`422`
+
+---
+
+**用户相关**
+1. `PATCH /api/v1/users/me`
+- 入参:
+```json
+{
+  "name": "user nickname",
   "avatar": "https://..."
 }
 ```
-- 说明：注册接口；`provider` 用于区分登录来源，`accessCode` 为固定字符串码；`nickname` 与 `avatar` 为可选
-- 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识后再注册
+- 说明：更新当前登录用户信息；`name` 与 `avatar` 至少传一个
 - 返回：
 ```json
-{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
+{ "id": "u1", "name": "Luka", "avatar": "https://..." }
 ```
-- 常见状态码：`200`、`400`、`403`、`409`、`422`
 
-2. `POST /api/v1/auth/login`
-- 入参：
-```json
-{
-  "provider": "wechat_mini",
-  "code": "<wx.login code>"
-}
-```
-- 说明：登录接口，仅登录已注册账号；若账号不存在返回 404；登录阶段不校验 `accessCode`
-- 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识后登录
-- 返回：
-```json
-{ "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
-```
-- 常见状态码：`200`、`400`、`404`、`422`
 
 ---
 
@@ -91,7 +92,7 @@
 }
 ```
 
-2. `POST /api/v1/spaces`
+1. `POST /api/v1/spaces`
 - 入参：
 ```json
 { "name": "旅行分享" }
@@ -101,27 +102,27 @@
 { "id": "sp_2", "name": "旅行分享" }
 ```
 
-3. `GET /api/v1/spaces/:spaceId`
+1. `GET /api/v1/spaces/:spaceId`
 - 说明：`coverUrl` 在适用时自动下发短期签名 URL
 - 返回：
 ```json
 { "id": "sp_1", "name": "家庭相册", "memberCount": 4, "photoCount": 126, "coverUrl": "https://..." }
 ```
 
-4. `PATCH /api/v1/spaces/:spaceId`（扩展）
+1. `PATCH /api/v1/spaces/:spaceId`（扩展）
 - 入参：
 ```json
 { "name": "新名称", "coverUrl": "https://..." }
 ```
 - 返回：同空间详情
 
-5. `DELETE /api/v1/spaces/:spaceId`（扩展）
+1. `DELETE /api/v1/spaces/:spaceId`（扩展）
 - 返回：
 ```json
 { "ok": true }
 ```
 
-6. `POST /api/v1/spaces/:spaceId/share-code`
+1. `POST /api/v1/spaces/:spaceId/share-code`
 - 说明：生成分享码
 - 入参：
 ```json
@@ -132,7 +133,7 @@
 { "shareCode": "ABC123", "expireAt": "2026-02-05T12:00:00Z" }
 ```
 
-7. `POST /api/v1/spaces/join`
+1. `POST /api/v1/spaces/join`
 - 说明：使用分享码加入空间
 - 入参：
 ```json
@@ -143,7 +144,7 @@
 { "spaceId": "sp_1", "role": "member" }
 ```
 
-8. `GET /api/v1/spaces/:spaceId/share-codes`（扩展）
+1. `GET /api/v1/spaces/:spaceId/share-codes`（扩展）
 - 入参：`page`、`pageSize`、`activeOnly`
 - 返回：
 ```json
@@ -157,7 +158,7 @@
 }
 ```
 
-9. `DELETE /api/v1/spaces/:spaceId/share-codes/:shareCodeId`（扩展）
+1. `DELETE /api/v1/spaces/:spaceId/share-codes/:shareCodeId`（扩展）
 - 返回：
 ```json
 { "ok": true }

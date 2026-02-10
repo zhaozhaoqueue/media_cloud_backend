@@ -1,4 +1,4 @@
-from app.schemas.auth import LoginData, LoginRequest, RegisterRequest, UserInfo
+from app.schemas.auth import LoginData, LoginRequest, UpdateUserProfileRequest, UserInfo
 from app.schemas.common import Response
 from app.schemas.file import (
     DeleteFileData,
@@ -64,7 +64,7 @@ __all__ = [
     "PhotoDetailData",
     "PhotoListData",
     "Response",
-    "RegisterRequest",
+    "UpdateUserProfileRequest",
     "ShareCodeData",
     "ShareCodeListData",
     "ShareCodeRequest",

@@ -13,7 +13,7 @@ cd /opt/media_cloud/backend
 ## - docker-compose.yaml
 
 # load the image
-## docker load -i //opt/media_cloud/backend/media_cloud_backend_0.3_amd64.tar
+## docker load -i /opt/media_cloud/backend/media_cloud_backend_0.3_amd64.tar
 
 
 # Init script
