@@ -49,6 +49,7 @@
 }
 ```
 - 说明：注册接口；`provider` 用于区分登录来源，`accessCode` 为固定字符串码；`nickname` 与 `avatar` 为可选
+- 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识后再注册
 - 返回：
 ```json
 { "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
@@ -64,6 +65,7 @@
 }
 ```
 - 说明：登录接口，仅登录已注册账号；若账号不存在返回 404；登录阶段不校验 `accessCode`
+- 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识后登录
 - 返回：
 ```json
 { "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }

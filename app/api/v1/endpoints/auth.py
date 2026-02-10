@@ -11,6 +11,7 @@ from app.models.user_identity import UserIdentity
 from app.schemas.auth import LoginData, LoginRequest, RegisterRequest, UserInfo
 from app.schemas.common import Response
 from app.services.jwt_tokens import create_access_token
+from app.services.provider_identity import ProviderIdentity, resolve_provider_identity
 
 router = APIRouter()
 # Internal beta gate: only clients with this fixed access code can log in.
@@ -29,13 +30,6 @@ def _validate_access_code(access_code: str) -> None:
         raise HTTPException(status_code=403, detail="Invalid access code")
 
 
-def _normalize_provider(provider: str) -> str:
-    normalized = provider.strip()
-    if not normalized:
-        raise HTTPException(status_code=400, detail="provider is required")
-    return normalized
-
-
 def _load_identity(
     db: Session,
     *,
@@ -48,6 +42,10 @@ def _load_identity(
             UserIdentity.openid == openid,
         )
     ).scalar_one_or_none()
+
+
+def _resolve_identity_from_login_payload(provider: str, code: str) -> ProviderIdentity:
+    return resolve_provider_identity(provider=provider, code=code)
 
 
 def _issue_token_and_user(user: User) -> Response[LoginData]:
@@ -68,12 +66,15 @@ def _issue_token_and_user(user: User) -> Response[LoginData]:
 @router.post("/auth/register", response_model=Response[LoginData])
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Response[LoginData]:
     _validate_access_code(payload.accessCode)
-    provider = _normalize_provider(payload.provider)
+    provider_identity = _resolve_identity_from_login_payload(
+        provider=payload.provider,
+        code=payload.code,
+    )
 
     identity = db.execute(
         select(UserIdentity).where(
-            UserIdentity.provider == provider,
-            UserIdentity.openid == payload.code,
+            UserIdentity.provider == provider_identity.provider,
+            UserIdentity.openid == provider_identity.openid,
         )
     ).scalar_one_or_none()
     if identity:
@@ -89,8 +90,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Respons
 
     identity = UserIdentity(
         user_id=user.id,
-        provider=provider,
-        openid=payload.code,
+        provider=provider_identity.provider,
+        openid=provider_identity.openid,
+        unionid=provider_identity.unionid,
     )
     db.add(identity)
     db.commit()
@@ -100,15 +102,22 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Respons
 
 @router.post("/auth/login", response_model=Response[LoginData])
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Response[LoginData]:
-    provider = _normalize_provider(payload.provider)
+    provider_identity = _resolve_identity_from_login_payload(
+        provider=payload.provider,
+        code=payload.code,
+    )
 
     identity = _load_identity(
         db=db,
-        provider=provider,
-        openid=payload.code,
+        provider=provider_identity.provider,
+        openid=provider_identity.openid,
     )
     if not identity:
         raise HTTPException(status_code=404, detail="Account not found")
+
+    if provider_identity.unionid and identity.unionid != provider_identity.unionid:
+        identity.unionid = provider_identity.unionid
+        db.commit()
 
     user = db.get(User, identity.user_id)
     if not user:

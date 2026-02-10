@@ -21,6 +21,10 @@ class Settings(BaseSettings):
         default=120,
         validation_alias=AliasChoices("JWT_EXPIRES_MINUTES", "JWT_EXPIRE_MINUTES"),
     )
+    provider_http_timeout_seconds: int = 5
+    wechat_api_base: str = "https://api.weixin.qq.com"
+    wechat_mini_app_id: str = ""
+    wechat_mini_app_secret: str = ""
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/media_cloud"
     storage_backend: str = "local"

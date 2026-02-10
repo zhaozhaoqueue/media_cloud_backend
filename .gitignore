@@ -14,3 +14,4 @@ venv/
 storage/
 *.tar
 media.weloverhea.top_nginx*
+media.weloverhea.cloud_nginx*
