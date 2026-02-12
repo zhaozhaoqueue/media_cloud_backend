@@ -14,3 +14,5 @@ vim /var/lib/pgsql/15/data/pg_hba.conf
 # reload pg15
 sudo systemctl reload postgresql-15
 
+# check
+sudo ss -lntp | grep 5432
