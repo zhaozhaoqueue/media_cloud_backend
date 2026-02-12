@@ -75,6 +75,165 @@
 
 ---
 
+**笔记相关**
+1. `GET /api/v1/notes`
+- 入参：`page`、`pageSize`、`order`(`asc|desc`)、`title`
+- 返回：
+```json
+{
+  "list": [
+    {
+      "id": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+      "title": "旅行清单",
+      "memberCount": 3,
+      "itemCount": 12,
+      "createdAt": "2026-02-12T10:00:00Z",
+      "updatedAt": "2026-02-12T10:30:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1
+}
+```
+
+2. `POST /api/v1/notes`
+- 入参：
+```json
+{ "title": "旅行清单" }
+```
+- 返回：
+```json
+{
+  "id": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+  "title": "旅行清单",
+  "createdAt": "2026-02-12T10:00:00Z",
+  "updatedAt": "2026-02-12T10:00:00Z"
+}
+```
+
+3. `GET /api/v1/notes/:noteId`
+- 返回：
+```json
+{
+  "id": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+  "title": "旅行清单",
+  "memberCount": 3,
+  "itemCount": 12,
+  "createdAt": "2026-02-12T10:00:00Z",
+  "updatedAt": "2026-02-12T10:30:00Z"
+}
+```
+
+4. `PATCH /api/v1/notes/:noteId`
+- 入参：
+```json
+{ "title": "旅行清单（更新）" }
+```
+- 返回：同笔记详情（包含 `createdAt`、`updatedAt`）
+
+5. `DELETE /api/v1/notes/:noteId`
+- 返回：
+```json
+{ "ok": true }
+```
+
+6. `POST /api/v1/notes/:noteId/share-code`
+- 说明：生成笔记分享码
+- 入参：
+```json
+{ "expiresIn": 86400, "maxUses": 20 }
+```
+- 返回：
+```json
+{ "shareCode": "ABC123", "expireAt": "2026-02-13T12:00:00Z" }
+```
+
+7. `POST /api/v1/notes/join`
+- 说明：使用分享码加入笔记
+- 入参：
+```json
+{ "shareCode": "ABC123" }
+```
+- 返回：
+```json
+{ "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4", "role": "member" }
+```
+
+---
+
+**笔记条目相关**
+1. `GET /api/v1/notes/:noteId/items`
+- 入参：`page`、`pageSize`、`order`(`asc|desc`)
+- 说明：按 `updatedAt` 排序，默认倒序（最新更新在前）
+- 说明：每个条目返回 `createdBy` 与 `updatedBy` 用户信息
+- 返回：
+```json
+{
+  "list": [
+    {
+      "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
+      "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+      "content": "带充电器",
+      "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+      "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+      "createdAt": "2026-02-12T10:10:00Z",
+      "updatedAt": "2026-02-12T10:10:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 50,
+  "total": 1
+}
+```
+
+2. `POST /api/v1/notes/:noteId/items`
+- 入参：
+```json
+{ "content": "带充电器" }
+```
+- 返回：
+```json
+{
+  "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
+  "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+  "content": "带充电器",
+  "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "createdAt": "2026-02-12T10:10:00Z",
+  "updatedAt": "2026-02-12T10:10:00Z"
+}
+```
+
+3. `GET /api/v1/notes/:noteId/items/:itemId`
+- 返回：
+```json
+{
+  "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
+  "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
+  "content": "带充电器",
+  "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "createdAt": "2026-02-12T10:10:00Z",
+  "updatedAt": "2026-02-12T10:10:00Z"
+}
+```
+
+4. `PATCH /api/v1/notes/:noteId/items/:itemId`
+- 入参：
+```json
+{ "content": "带快充充电器" }
+```
+- 返回：同条目详情（包含 `createdAt`、`updatedAt` 和用户信息）
+
+5. `DELETE /api/v1/notes/:noteId/items/:itemId`
+- 返回：
+```json
+{ "ok": true }
+```
+
+---
+
 **空间相关**
 1. `GET /api/v1/spaces`
 - 入参：`page`、`pageSize`、`order`(`asc|desc`)、`name`

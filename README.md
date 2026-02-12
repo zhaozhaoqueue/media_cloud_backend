@@ -28,7 +28,7 @@ docker logs -f media-cloud-postgres
 
 ```bash
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host $APP_HOST --port $APP_PORT
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Auth: send `Authorization: Bearer <token>` header to protected endpoints.
