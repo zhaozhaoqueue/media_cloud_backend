@@ -3,7 +3,7 @@ import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.api.deps import get_current_user_id
@@ -281,6 +281,7 @@ def delete_note(
     note = _get_note_or_404(db, note_uuid)
     _require_note_manager(db=db, note_id=note_uuid, user_id=user_id)
 
+    db.execute(delete(NoteItem).where(NoteItem.note_id == note_uuid))
     db.delete(note)
     db.commit()
 

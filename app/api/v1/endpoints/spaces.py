@@ -1,16 +1,18 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import secrets
 import re
 import uuid
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_id
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.file import File
 from app.models.space import Space
 from app.models.photo import Photo
 from app.models.space_member import SpaceMember
@@ -101,6 +103,23 @@ def _to_signed_cover_url(cover_url: str | None) -> str | None:
         ttl_seconds=settings.read_url_ttl_seconds,
         secret=settings.read_url_signing_secret,
     )
+
+
+def _delete_space_storage_files(db: Session, space_id: uuid.UUID) -> None:
+    rows = db.execute(
+        select(File.id, File.storage_key).where(File.space_id == space_id)
+    ).all()
+    root = Path(settings.storage_local_root)
+
+    for file_id, storage_key in rows:
+        raw_path = root / storage_key
+        thumb_path = root / f"thumbs/{file_id}.jpg"
+        for path in (raw_path, thumb_path):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                # File cleanup is best effort; DB cleanup still proceeds.
+                pass
 
 
 @router.get("/spaces", response_model=Response[SpaceListData])
@@ -257,6 +276,9 @@ def delete_space(
     space = _get_space_or_404(db, space_id)
     _require_space_manager(db=db, space_id=space_id, user_id=user_id)
 
+    _delete_space_storage_files(db=db, space_id=space.id)
+    db.execute(delete(Photo).where(Photo.space_id == space.id))
+    db.execute(delete(File).where(File.space_id == space.id))
     db.delete(space)
     db.commit()
 
