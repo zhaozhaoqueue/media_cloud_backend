@@ -49,6 +49,7 @@
 - 说明：当 `provider=wechat_mini` 时，后端会调用微信 `jscode2session` 接口，用 `code` 换取微信用户唯一标识
 - 说明：若用户已存在，直接登录并返回 token
 - 说明：若用户不存在，则校验 `inviteCode`。校验通过后自动创建用户（随机名称，头像为空）并登录；校验失败返回 403
+- 说明：返回中的 `user.avatar` 为基于 `avatarFileId` 生成的短期签名 URL
 - 返回：
 ```json
 { "token": "jwt-token", "user": { "id": "u1", "name": "Luka", "avatar": "https://..." } }
@@ -58,19 +59,50 @@
 ---
 
 **用户相关**
-1. `PATCH /api/v1/users/me`
+1. `POST /api/v1/users/me/avatar/upload-token`
+- 入参：
+```json
+{
+  "name": "avatar.png",
+  "size": 102400,
+  "type": "image/png"
+}
+```
+- 说明：下发头像文件直传凭证，返回 `uploadUrl` 后客户端直接 `PUT` 二进制流
+- 返回：
+```json
+{
+  "fileId": "f1",
+  "uploadUrl": "https://api.example.com/api/v1/uploads/f1?token=xxx",
+  "method": "PUT",
+  "headers": { "Content-Type": "image/png" },
+  "finalUrl": "https://api.example.com/api/v1/files/f1/raw"
+}
+```
+- 常见状态码：`200`、`401`、`404`、`422`
+- 额外状态码：`400`（`size <= 0` 或 `type` 不是 `image/*`）
+
+2. `PATCH /api/v1/users/me`
 - 入参:
 ```json
 {
   "name": "user nickname",
-  "avatar": "https://..."
+  "avatarFileId": "f1"
 }
 ```
-- 说明：更新当前登录用户信息；`name` 与 `avatar` 至少传一个
+- 说明：更新当前登录用户信息；`name` 与 `avatarFileId` 至少传一个
+- 说明：`avatarFileId` 必须是当前用户通过头像上传凭证上传、且状态为 `uploaded` 的文件
+- 说明：更新成功后，返回中的 `avatar` 为短期签名 URL
 - 返回：
 ```json
 { "id": "u1", "name": "Luka", "avatar": "https://..." }
 ```
+- 常见状态码：`200`、`400`、`401`、`403`、`404`、`422`
+
+3. 头像上传调用顺序
+1. `POST /api/v1/users/me/avatar/upload-token`
+2. `PUT uploadUrl` 直传二进制
+3. `PATCH /api/v1/users/me`，传 `avatarFileId`
 
 
 ---
@@ -166,7 +198,7 @@
 1. `GET /api/v1/notes/:noteId/items`
 - 入参：`page`、`pageSize`、`order`(`asc|desc`)
 - 说明：按 `updatedAt` 排序，默认倒序（最新更新在前）
-- 说明：每个条目返回 `createdBy` 与 `updatedBy` 用户信息
+- 说明：每个条目返回 `createdBy` 与 `updatedBy` 用户信息（仅 `id`、`name`）
 - 返回：
 ```json
 {
@@ -175,8 +207,8 @@
       "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
       "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
       "content": "带充电器",
-      "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
-      "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+      "createdBy": { "id": "u1", "name": "Luka" },
+      "updatedBy": { "id": "u1", "name": "Luka" },
       "createdAt": "2026-02-12T10:10:00Z",
       "updatedAt": "2026-02-12T10:10:00Z"
     }
@@ -198,8 +230,8 @@
   "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
   "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
   "content": "带充电器",
-  "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
-  "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "createdBy": { "id": "u1", "name": "Luka" },
+  "updatedBy": { "id": "u1", "name": "Luka" },
   "createdAt": "2026-02-12T10:10:00Z",
   "updatedAt": "2026-02-12T10:10:00Z"
 }
@@ -212,8 +244,8 @@
   "id": "79c1860d-746b-4d8c-a392-1f9d2fd25220",
   "noteId": "8d13c4e0-8f00-4d93-9a78-5e6d5dd5b8d4",
   "content": "带充电器",
-  "createdBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
-  "updatedBy": { "id": "u1", "name": "Luka", "avatar": "https://..." },
+  "createdBy": { "id": "u1", "name": "Luka" },
+  "updatedBy": { "id": "u1", "name": "Luka" },
   "createdAt": "2026-02-12T10:10:00Z",
   "updatedAt": "2026-02-12T10:10:00Z"
 }
@@ -520,6 +552,7 @@
 
 2. `GET /api/v1/files/:fileId`
 - 返回：同文件列表项字段
+- 说明：头像文件（用户头像上传）`spaceId` 可能为 `null`
 
 3. `PUT /api/v1/uploads/:fileId?token=xxx`
 - 说明：客户端按 `upload-token` 接口返回的地址直接上传文件二进制流

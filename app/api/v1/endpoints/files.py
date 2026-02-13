@@ -83,7 +83,7 @@ def list_files(
     items = [
         FileItem(
             id=str(item.id),
-            spaceId=str(item.space_id),
+            spaceId=str(item.space_id) if item.space_id else None,
             name=item.name,
             mimeType=item.mime_type,
             size=item.size,
@@ -110,7 +110,7 @@ def get_file(
     return Response(
         data=FileDetailData(
             id=str(record.id),
-            spaceId=str(record.space_id),
+            spaceId=str(record.space_id) if record.space_id else None,
             name=record.name,
             mimeType=record.mime_type,
             size=record.size,
@@ -246,7 +246,7 @@ def update_file(
     return Response(
         data=FileDetailData(
             id=str(record.id),
-            spaceId=str(record.space_id),
+            spaceId=str(record.space_id) if record.space_id else None,
             name=record.name,
             mimeType=record.mime_type,
             size=record.size,

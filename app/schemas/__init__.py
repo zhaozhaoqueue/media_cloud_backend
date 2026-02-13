@@ -1,4 +1,11 @@
-from app.schemas.auth import LoginData, LoginRequest, UpdateUserProfileRequest, UserInfo
+from app.schemas.auth import (
+    AvatarUploadTokenData,
+    AvatarUploadTokenRequest,
+    LoginData,
+    LoginRequest,
+    UpdateUserProfileRequest,
+    UserInfo,
+)
 from app.schemas.common import Response
 from app.schemas.file import (
     DeleteFileData,
@@ -59,6 +66,8 @@ from app.schemas.space import (
 
 __all__ = [
     "AddMemberRequest",
+    "AvatarUploadTokenData",
+    "AvatarUploadTokenRequest",
     "BatchCreatePhotosData",
     "BatchCreatePhotosRequest",
     "CreateNoteData",

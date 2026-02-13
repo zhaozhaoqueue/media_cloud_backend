@@ -109,7 +109,7 @@ def _build_note_detail_data(db: Session, note: Note) -> NoteDetailData:
 
 
 def _to_note_item_user(user: User) -> NoteItemUser:
-    return NoteItemUser(id=str(user.id), name=user.name, avatar=user.avatar_url)
+    return NoteItemUser(id=str(user.id), name=user.name)
 
 
 def _to_note_item_data(item: NoteItem, created_user: User, updated_user: User) -> NoteItemData:

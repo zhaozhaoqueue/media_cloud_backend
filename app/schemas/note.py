@@ -66,7 +66,6 @@ class JoinNoteData(BaseModel):
 class NoteItemUser(BaseModel):
     id: str
     name: str
-    avatar: str | None = None
 
 
 class NoteItemData(BaseModel):

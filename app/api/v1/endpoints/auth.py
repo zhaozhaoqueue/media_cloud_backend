@@ -13,6 +13,7 @@ from app.schemas.auth import LoginData, LoginRequest, UserInfo
 from app.schemas.common import Response
 from app.services.jwt_tokens import create_access_token
 from app.services.provider_identity import ProviderIdentity, resolve_provider_identity
+from app.services.user_avatar import build_user_avatar_url
 
 router = APIRouter()
 LOGIN_INVITE_CODE = "MC_BETA_2026"
@@ -51,7 +52,11 @@ def _issue_token_and_user(user: User) -> Response[LoginData]:
     return Response(
         data=LoginData(
             token=token,
-            user=UserInfo(id=str(user.id), name=user.name, avatar=user.avatar_url),
+            user=UserInfo(
+                id=str(user.id),
+                name=user.name,
+                avatar=build_user_avatar_url(user.avatar_file_id),
+            ),
         )
     )
 
@@ -88,6 +93,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Response[Logi
     user = User(
         id=uuid.uuid4(),
         name=_generate_new_user_name(),
+        avatar_file_id=None,
         avatar_url=None,
     )
     db.add(user)

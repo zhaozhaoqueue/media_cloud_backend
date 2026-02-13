@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class FileItem(BaseModel):
     id: str
-    spaceId: str
+    spaceId: str | None = None
     name: str
     mimeType: str
     size: int
@@ -24,7 +24,7 @@ class FileListData(BaseModel):
 
 class FileDetailData(BaseModel):
     id: str
-    spaceId: str
+    spaceId: str | None = None
     name: str
     mimeType: str
     size: int
