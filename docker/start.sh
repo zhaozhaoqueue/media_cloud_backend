@@ -14,5 +14,6 @@ exec gunicorn app.main:app \
   --timeout "${TIMEOUT}" \
   --keep-alive "${KEEPALIVE}" \
   --access-logfile - \
+  --access-logformat '[%(t)s] %(h)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"' \
   --error-logfile - \
   --log-level "${LOG_LEVEL}"

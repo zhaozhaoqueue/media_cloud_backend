@@ -30,7 +30,7 @@ psql -v ON_ERROR_STOP=1 \
 # start the service
 APP_ENV_FILE=.env.prod docker compose --env-file .env.prod up -d
 # logs
-APP_ENV_FILE=.env.prod docker compose logs -f
+APP_ENV_FILE=.env.prod docker compose logs -f --timestamps
 
 # stop the service
 APP_ENV_FILE=.env.prod docker compose --env-file .env.prod down
