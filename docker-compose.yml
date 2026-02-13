@@ -7,7 +7,7 @@ networks:
 
 services:
   api:
-    image: media_cloud_backend:0.6
+    image: media_cloud_backend:0.7
     container_name: media-cloud-api
     env_file:
       - ${APP_ENV_FILE:-.env}
